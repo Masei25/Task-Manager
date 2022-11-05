@@ -2,7 +2,6 @@
 @extends('layouts.app')
 
 @section('content')
-
     <div style="margin-top:20px;">
         <a href="/">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-house"
@@ -32,6 +31,7 @@
                     </div>
                 </div>
             </div>
+
             @if (count($tasks) > 0)
                 <table class="table table-striped table-hover">
                     <thead>
@@ -94,17 +94,20 @@
 
                     </tbody>
                 </table>
-                <div class="clearfix">
+            @endif
 
-                    <ul class="pagination">
-                        {{ $tasks->links() }}
-                    </ul>
-                </div>
-            @else
+            @if (!count($tasks) > 0)
                 <div class="clearfix">
                     <h4 style="color: red" align="center"> The List is Empty </h4>
                 </div>
             @endif
+
+            <div class="clearfix">
+                <ul class="pagination">
+                    {{ $tasks->links() }}
+                </ul>
+            </div>
+
         </div>
     </div>
 @endsection
