@@ -11,7 +11,7 @@ use App\Repositories\TaskRepository;
 class TaskController extends Controller
 {
     protected $model;
-    
+
     public function __construct(Task $task)
     {
         $this->model = new TaskRepository($task);
@@ -90,18 +90,19 @@ class TaskController extends Controller
      */
     public function edit($task_id)
     {
-        if(Task::where(['task_id' => $task_id])->exists()){
+        $task = Task::find($task_id);
 
+        if($task) {
             $task = $this->model->show($task_id);
             return view("task.edit")->with([
                 'task' => $task
             ]);
-            
-        }else{
-            return redirect()->back()->with([
-                'error' => $task_id. " does not exits for any Task",
-            ]);
         }
+
+        return redirect()->back()->with([
+            'error' => $task_id. " does not exits for any Task",
+        ]);
+
     }
 
     /**
@@ -113,36 +114,32 @@ class TaskController extends Controller
      */
     public function update(Request $request, $task_id)
     {
-        if(Task::where(['task_id' => $task_id])->exists()){
+        $task = Task::find($task_id);
 
-            $this->validate($request, [
-                'task_name' => ['required', 'string', 'max:199'],
-                'task_date' => ['required', 'string', 'max:199'],
-            ]);
-            
-            $data = ([
-                "task" => $this->model->show($task_id),
-                "task_name" => $request->input("task_name"),
-                "task_date" => $request->input("task_date"),
-                'status' =>$request->input("status"),
-            ]);
-    
-            if ($this->model->update($data, $task_id)) {
-                
-                $message = "You Have Updated The Task Successfully";
-                return redirect()->route("task.index")->with([
-                    "success" => $message
-                ]);
-    
-            }else{
-                return redirect()->back()->with("error", "Network Failure, Please try again later");
-            }
-
-        }else{
+        if(!$task) {
             return redirect()->back()->with([
                 'error' => $task_id. " does not exits for any Task",
             ]);
         }
+
+        if($task) {
+            $this->validate($request, [
+                'task_name' => ['required', 'string', 'max:199'],
+                'task_date' => ['required', 'string', 'max:199'],
+            ]);
+
+            $task->update([
+                "task_name" => $request->input("task_name"),
+                "task_date" => $request->input("task_date"),
+                'status' =>$request->input("status"),
+            ]);
+
+            return redirect()->route("task.index")->with([
+                "success" => "You Have Updated The Task Successfully"
+            ]);
+
+        }
+
     }
 
     /**
@@ -153,47 +150,47 @@ class TaskController extends Controller
      */
     public function destroy($task_id)
     {
-        if(Task::where(['task_id' => $task_id])->exists()){
-            
-            $task =  $this->model->show($task_id);
-            if (($this->model->delete($task_id)) AND ($task->trashed())) {
-                
-                return redirect()->back()->with([
-                    'success' => "You Have Deleted The Task Details Successfully",
-                ]);
-            }else{
-                return redirect()->back()->with([
-                    'error' => "Network failure, Please try again later",
-                ]);
-            }
-            
-        }else{
+        $task = Task::find($task_id);
+
+        if(!$task) {
             return redirect()->back()->with([
                 'error' => $task_id. " does not exits for any Task",
             ]);
         }
+
+        if($task) {
+            if (($task->delete($task_id)) AND ($task->trashed())) {
+                
+                return redirect()->back()->with([
+                    'success' => "You Have Deleted The Task Details Successfully",
+                ]);
+            }
+        }
+
     }
 
-    public function bin()
+    public function recycleBin()
     {
-        
-        $task = Task::onlyTrashed()->paginate(10);
+        $tasks = Task::onlyTrashed()->paginate(10);
+
         return view('task.recyclebin')->with([
-            'task' => $task,
+            'tasks' => $tasks,
         ]);
         
     }
 
     public function restore($task_id)
     {
-        
         $task = Task::withTrashed()->where('task_id', $task_id)->restore();
-        if(!empty($task)){
+
+        if(($task)) {
             return redirect()->back()->with([
                 'success' => " You Have Restored The Task Successfully",
 
             ]);
-        }else{
+        }
+        
+        if(!$task) {
             return redirect()->back()->with([
                 'error' => $task_id. " Task could not be restore",
             ]);

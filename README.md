@@ -1,4 +1,4 @@
-# TECHQUITY
+# TASK MANAGER
 
 This Project is a Task Manager App.
 
