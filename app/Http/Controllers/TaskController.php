@@ -1,13 +1,17 @@
 <?php
 
 namespace App\Http\Controllers;
-use Illuminate\Http\Request;
-use App\{Task};
+
 use DB;
+use App\{Task};
+use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\Builder;
 use App\Repositories\TaskRepository;
+
 class TaskController extends Controller
 {
     protected $model;
+    
     public function __construct(Task $task)
     {
         $this->model = new TaskRepository($task);
@@ -19,11 +23,21 @@ class TaskController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
-        $task = Task::orderBy('status', 'desc')->paginate(10);
+        $search = $request->search;
+
+        $tasks = Task::query()
+                    ->when($search, function(Builder $query) use ($search){
+                        $query->where('task_name', 'like', '%' . $search . '%');
+                    })
+                    ->orderBy('status', 'desc')
+                    ->paginate(10)
+                    ->withQueryString();
+
+
         return view("task.index")->with([
-            "task" => $task,
+            "tasks" => $tasks,
         ]);
     }
 
@@ -46,58 +60,26 @@ class TaskController extends Controller
     public function store(Request $request)
     {
         $this->validate($request, [
-            'task_name' => ['required', 'string', 'max:199'],
-            'task_date' => ['required', 'string', 'max:199'],
+            'task_name' => 'required|string|max:199',
+            'task_date' => 'required|string|max:199',
         ]);
 
-        $task_name = $request->input("task_name");
-        $task_date = $request->input("task_date");
-        if(Task::where(['task_name' => $task_name, 'task_date' => $task_date])->exists()){
-            return back()->withInput()->with("error", "You Have Added Task $task_name To $task_date Before");
-        }else{
-        
-            $data = ([
-                "task" => new Task,
-                "task_name" => $task_name,
-                "task_date" => $task_date,
-                'status' => 'Pending'
-                
-            ]);
+        $input = $request->all();
 
-            if ($this->model->create($data)) {
-                
-                $message = "You Have Added $task_name to $task_date Successfully";
-                return redirect()->route("task.index")->with([
-                    "success" => $message
-                ]);
-
-            }else{
-                return redirect()->back()->with("error", "Network Failure, Please try again later");
-            }
+        if(Task::where(['task_name' => $input['task_name'], 'task_date' => $input['task_date']])->exists()) {
+            return back()->withInput()->with("error",  "This task already exist!");
         }
-    }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Task  $task
-     * @return \Illuminate\Http\Response
-     */
-    public function search(Request $request)
-    {
-        $this->validate($request, [
-            'task_name' => ['required', 'string', 'max:199'],
+        Task::create([
+            "task_name" => $input['task_name'],
+            "task_date" => $input['task_date'],
+            'status' => 'Pending'
         ]);
-        $task_name = $request->input("task_name");
-        return redirect()->route('task.view',$task_name)->with([
-            'task_name' => $task_name
-        ]);
-    }
 
-    public function show($task_name)
-    {
-        $task = Task::where('task_name', 'like', '%' . $task_name . '%')->orderBy('status', 'desc')->paginate(10);
-        return view('task.show')->with(['task' => $task]);
+        return redirect()->route("task.index")->with([
+            "success" => 'Task added successfully'
+        ]);
+
     }
 
     /**
